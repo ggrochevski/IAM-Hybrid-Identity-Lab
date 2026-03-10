@@ -1,260 +1,206 @@
 # Active Directory Identity & Access Management Lab
 
-## 1. Overview
-This project is a hands-on Identity & Access Management lab built in a local virtualized environment using Microsoft Active Directory.
+## Overview
 
-The lab simulates a small enterprise identity infrastructure and demonstrates core IAM concepts, including:
+This project demonstrates a hands-on Identity & Access Management lab built using Microsoft Active Directory in a virtualized environment.
+
+The lab simulates a small enterprise identity infrastructure and demonstrates core IAM concepts including:
 
 - Active Directory Domain Services (AD DS)
-- DNS-based identity service discovery
+- DNS-based service discovery
 - Kerberos authentication
 - Role-Based Access Control (RBAC)
-- AGDLP group nesting
-- NTFS permission assignment
-- Group Policy enforcement
+- AGDLP group nesting model
+- NTFS permission management
+- Group Policy security controls
 - Identity lifecycle actions such as provisioning and access revocation
 
-This project was built to demonstrate practical identity administration and access control concepts used in enterprise Windows environments.
+The objective of this project is to demonstrate practical identity administration and access control mechanisms used in enterprise Windows environments.
 
 ---
 
-## 2. Current Lab Architecture
+# Lab Architecture
 
-### Environment
-- **Virtualization Platform:** Oracle VirtualBox
-- **Network Type:** Host-Only Adapter
-- **Domain Name:** `treasury.local`
+**Virtualization Platform:** Oracle VirtualBox  
+**Network Type:** Host-Only Network  
+**Domain:** `treasury.local`
 
-### Systems
-| System | Role | OS | IP Address |
-|--------|------|----|------------|
+| System | Role | Operating System | IP Address |
+|------|------|------|------|
 | DC01 | Domain Controller | Windows Server 2019 | 10.10.10.10 |
-| Windows 10 Client | Domain-Joined Workstation | Windows 10 | 10.10.10.x |
+| CLIENT01 | Domain-Joined Workstation | Windows 10 | 10.10.10.20 |
 
-### Server Roles Installed on DC01
+### Server Roles Installed
+
+**DC01**
+
 - Active Directory Domain Services (AD DS)
 - DNS Server
 
-The Windows 10 client was configured to use the Domain Controller as its DNS server, enabling domain join, Kerberos authentication, and Active Directory service discovery.
+The Windows client uses the Domain Controller as its DNS server, enabling:
+
+- Active Directory service discovery
+- domain authentication
+- Kerberos ticket issuance
 
 ---
 
-## 3. Network Diagram
+# Network Diagram
 
 ```mermaid
 flowchart TB
-    subgraph VirtualBox["VirtualBox Host-Only Network"]
-        DC["DC01<br/>Windows Server 2019<br/>AD DS + DNS<br/>10.10.10.10"]
-        CL["Windows 10 Client<br/>Domain Joined<br/>10.10.10.x"]
+    subgraph VirtualBox Host-Only Network
+        DC["DC01<br>Windows Server 2019<br>AD DS + DNS<br>10.10.10.10"]
+        CL["CLIENT01<br>Windows 10<br>10.10.10.20"]
     end
 
-    CL -->|DNS / Kerberos / LDAP| DC
+    CL -->|DNS| DC
+    CL -->|Kerberos Authentication| DC
     CL -->|SMB Access| DC
 ```
 
 ---
 
-## 4. Active Directory Structure
+# IAM Capabilities Demonstrated
 
-### Organizational Units
-```text
-treasury.local
-│
-├── Corp-Admins
-├── Corp-Computers
-├── Corp-Groups
-│   ├── Distribution
-│   └── Security
-│
-└── Corp-Users
-    ├── OEE
-    ├── IT
-    ├── ABCC
-    ├── MSRB
+This lab demonstrates several core Identity & Access Management capabilities.
+
+### Active Directory Administration
+
+- Domain controller deployment
+- Organizational Unit design
+- user and group management
+
+### Role-Based Access Control
+
+Access control is implemented using Microsoft's recommended **AGDLP model**.
+
+```
+Accounts → Global Groups → Domain Local Groups → Permissions
 ```
 
-### Example Users
-- `dkim`
-- `jsmith`
+This structure ensures permissions are assigned through roles rather than directly to users.
 
-### Security Groups
+### Identity Lifecycle Simulation
 
-#### Global Groups
-- `GG_OEE_Employees`
-- `GG_OEE_Managers`
+Basic IAM lifecycle scenarios were tested:
 
-#### Domain Local Groups
-- `DL_OEE_Share_Read`
-- `DL_OEE_Share_Modify`
+- user provisioning
+- group membership changes
+- access revocation
+- access restoration
 
-This structure was used to model departmental access and role-based authorization.
+### Group Policy Security Controls
 
----
-
-## 5. RBAC and AGDLP Access Model
-
-The lab implements Role-Based Access Control using the AGDLP model:
-
-**Accounts → Global Groups → Domain Local Groups → Permissions**
-
-### Example Access Path
-```text
-dkim
-↓
-GG_OEE_Employees
-↓
-DL_OEE_Share_Modify
-↓
-NTFS Permission
-↓
-\\DC01\oee
-```
-
-This design ensures users do not receive permissions directly. Access is assigned through group membership, following Microsoft best practice.
+Domain-wide account security policies were implemented through the **Default Domain Policy**.
 
 ---
 
-## 6. File Share and Access Control Validation
+# Authentication Validation
 
-### Shared Resource
-- **Share Path:** `\\DC01\oee`
-- **Local Folder:** `C:\TreasuryShares\OEE`
-
-### NTFS Permissions
-- `DL_OEE_Share_Read` → Read
-- `DL_OEE_Share_Modify` → Modify
-- `Domain Admins` → Full Control
-
-### Access Control Tests Performed
-- Authorized user successfully accessed the share
-- Unauthorized user received **Access Denied**
-- Removing a user from the security group revoked access
-- Re-adding the user restored access
-
-These tests validated that authorization was working correctly through group membership and NTFS permissions.
-
----
-
-## 7. Kerberos Authentication Validation
-
-The lab uses **Kerberos** as the authentication protocol for Active Directory.
-
-Authentication was validated on the Windows 10 client using:
+Kerberos authentication was validated on the domain-joined client using:
 
 ```powershell
 klist
 ```
 
-### Tickets Observed
-- `krbtgt/TREASURY.LOCAL`  
-  - Ticket Granting Ticket (TGT) issued at logon
-- `cifs/DC01`  
-  - Service ticket issued after accessing the SMB share
+Observed tickets:
 
-### Authentication Flow
-```text
-User logs into domain-joined workstation
-↓
-Domain Controller validates credentials
-↓
-TGT issued
-↓
-User requests service ticket
-↓
-CIFS ticket issued
-↓
-User accesses \\DC01\oee
+```
+krbtgt/TREASURY.LOCAL
 ```
 
-This confirmed that Kerberos authentication was functioning correctly in the lab.
+Ticket Granting Ticket issued at logon.
+
+```
+cifs/DC01
+```
+
+Service ticket issued when accessing the network share.
+
+Authentication flow:
+
+```
+User login
+    ↓
+Domain Controller validates credentials
+    ↓
+Ticket Granting Ticket issued
+    ↓
+Service ticket requested
+    ↓
+CIFS ticket issued
+    ↓
+Access to \\DC01\oee
+```
 
 ---
 
-## 8. Group Policy Configuration
+# Access Control Validation
 
-The lab uses the **Default Domain Policy** to enforce baseline domain security settings.
+### File Share
 
-### Configured Policies
-- Minimum password length
-- Password complexity requirements
-- Account lockout threshold
-- Lockout duration
+```
+\\DC01\oee
+```
 
-These settings apply domain-wide and provide baseline account security controls.
+Local folder:
 
----
+```
+C:\TreasuryShares\OEE
+```
 
-## 9. Security Logging
+### NTFS Permissions
 
-Security logging was partially implemented to support identity-related visibility.
+```
+DL_OEE_Share_Read → Read
+DL_OEE_Share_Modify → Modify
+Domain Admins → Full Control
+```
 
-### Configured Logging
-- Advanced Audit Policy
-- Logon events
-- Process creation events
-- Event ID `4688`
+### Authorization Tests
 
-PowerShell logging was also part of the broader lab discussions and detection work.
+The following tests were performed from the client workstation:
 
----
+- authorized user successfully accessed the share
+- unauthorized user received **Access Denied**
+- removing a user from the group revoked access
+- re-adding the user restored access
 
-## 10. Identity Lifecycle Actions Simulated
-
-The lab also demonstrated basic identity lifecycle scenarios.
-
-### Joiner
-- Created users such as `dkim` and `jsmith`
-- Assigned users to department-aligned groups
-
-### Mover
-- Changed group membership to reflect access changes
-
-### Access Revocation / Restoration
-- Removed a user from a group and verified access was revoked
-- Re-added the user and verified access was restored
-
-This simulated real IAM provisioning and deprovisioning behavior.
+These tests validated group-based authorization using the AGDLP model.
 
 ---
 
-## 11. Validation Summary
+# Documentation
 
-The current lab successfully demonstrates:
+Detailed documentation for the lab components:
 
-- Active Directory deployment
-- DNS configuration for identity services
-- Domain join functionality
-- Organizational Unit design
-- Security group administration
-- RBAC through AGDLP
-- NTFS permission assignment
-- Kerberos authentication validation
-- Group Policy-based security controls
-- Identity lifecycle simulation
+- **Lab Architecture**  
+  `docs/lab-architecture.md`
 
----
+- **Active Directory Configuration**  
+  `docs/active-directory-configuration.md`
 
-## 12. Project Documentation
+- **Kerberos Authentication**  
+  `docs/kerberos-authentication.md`
 
-Detailed project notes are available here:
+- **RBAC and Access Control**  
+  `docs/rbac-access-control.md`
 
-- [Lab Architecture](docs/architecture.md)
-- [Active Directory Configuration](docs/active-directory.md)
-- [Kerberos Validation](docs/kerberos-validation.md)
-- [RBAC and Access Control](docs/rbac-and-access-control.md)
-- [Group Policy Configuration](docs/group-policy.md)
-- [Security Logging](docs/security-logging.md)
+- **Group Policy Security**  
+  `docs/group-policy-security.md`
+
+- **Security Logging**  
+  `docs/security-logging.md`
 
 ---
 
-## 13. Resume Value
-
-This project demonstrates hands-on experience with:
+# Skills Demonstrated
 
 - Active Directory administration
 - Identity and access management
 - Kerberos authentication
-- RBAC design
-- Group Policy
-- Access control validation
+- RBAC implementation
+- NTFS permission management
+- Group Policy security configuration
 - Windows enterprise identity infrastructure
