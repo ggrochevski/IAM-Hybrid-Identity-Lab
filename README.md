@@ -176,24 +176,24 @@ These tests validated group-based authorization using the AGDLP model.
 Detailed documentation for the lab components:
 
 - **Lab Architecture**  
-  `docs/lab-architecture.md`
+  `docs/architecture.md`
 
 - **Active Directory Configuration**  
-  `docs/active-directory-configuration.md`
+  `docs/active-directory.md`
 
-- **Kerberos Authentication**  
-  `docs/kerberos-authentication.md`
+- **Kerberos Authentication Validation**  
+  `docs/kerberos-validation.md`
 
 - **RBAC and Access Control**  
-  `docs/rbac-access-control.md`
+  `docs/rbac-and-access-control.md`
 
-- **Group Policy Security**  
-  `docs/group-policy-security.md`
+- **Group Policy Configuration**  
+  `docs/group-policy.md`
 
 - **Security Logging**  
   `docs/security-logging.md`
 
----
+  ---
 
 # Skills Demonstrated
 
