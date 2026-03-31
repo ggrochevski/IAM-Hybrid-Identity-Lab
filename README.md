@@ -19,73 +19,139 @@ The objective was to simulate how real organizations manage:
 
 ## Architecture Overview
 
-### On-Premises Environment
+The lab is built using a hybrid identity model where:
 
-* Domain Controller: Windows Server 2019 (DC01)
-* Domain: treasury.local
-* Roles:
+* Active Directory acts as the on-prem identity provider
+* Microsoft Entra ID acts as the cloud identity platform
+* Microsoft Entra Connect synchronizes identities between environments
+* Conditional Access enforces security controls
 
-  * Active Directory Domain Services (AD DS)
-  * DNS Server
+---
 
-### Network Design
+## Architecture Diagram
 
-Dual-NIC architecture:
+```mermaid
+flowchart LR
 
-**Internal Network (AD Communication)**
+subgraph On-Prem Environment
+    DC01["DC01 (Domain Controller)\nAD DS + DNS"]
+    Client["Windows 10 Client\nDomain Joined"]
+    AD["Active Directory\n(treasury.local)"]
+end
 
-* Subnet: 10.10.10.0/24
-* DC01: 10.10.10.10
-* Windows 10 Client: 10.10.10.20
+subgraph Cloud Environment
+    Entra["Microsoft Entra ID\n(grochevski.onmicrosoft.com)"]
+    CA["Conditional Access"]
+end
 
-**External Network (Internet / Cloud Access)**
+DC01 --> AD
+Client --> AD
 
-* NAT Network: 10.0.2.0/24
+AD -->|Sync via Entra Connect| Entra
 
-### DNS Configuration
+Client -->|Authentication| AD
+Client -->|Access Cloud Apps| Entra
 
-* DC01 configured as primary DNS server
-* DNS Forwarders:
+Entra --> CA
+CA -->|MFA + Device Trust| Client
+```
 
-  * 8.8.8.8
-  * 1.1.1.1
+---
+
+## Authorization Model (AGDLP)
+
+```mermaid
+flowchart LR
+
+User["User Account\n(emily.davis)"]
+GG["Global Group\nGG_OEE_Employees"]
+DL["Domain Local Group\nDL_OEE_Share_Modify"]
+Resource["Resource\n\\\\DC01\\OEE"]
+
+User --> GG
+GG --> DL
+DL --> Resource
+```
+
+---
+
+## Authentication and Access Flow
+
+```mermaid
+flowchart TD
+
+User["User Login"]
+Device["Hybrid Joined Device"]
+AD["Active Directory"]
+Entra["Microsoft Entra ID"]
+CA["Conditional Access"]
+
+User --> AD
+AD -->|Sync Identity| Entra
+
+User -->|Access Cloud App| Entra
+Device --> Entra
+
+Entra --> CA
+
+CA -->|Check MFA| User
+CA -->|Check Device Trust| Device
+
+CA -->|Allow or Block Access| User
+```
+
+---
+
+## Network Architecture
+
+```mermaid
+flowchart LR
+
+subgraph Internal Network (10.10.10.0/24)
+    DC["DC01\n10.10.10.10"]
+    Client["Windows 10 Client\n10.10.10.20"]
+end
+
+subgraph External Network (NAT)
+    Internet["Internet"]
+end
+
+DC --> Client
+DC --> Internet
+Client --> Internet
+```
 
 ---
 
 ## Phase 0 — Active Directory Foundation
 
-### Domain Deployment
+* Deployed Windows Server 2019 Domain Controller (DC01)
+* Configured AD DS and DNS
+* Domain: treasury.local
+* Verified domain join and authentication
 
-* Promoted Windows Server to Domain Controller
-* Configured domain: treasury.local
-* Verified authentication and domain join functionality
+### Organizational Structure
 
-### Organizational Unit Structure
-
-Enterprise-style OU structure implemented:
-
-* Corp-Users (department-based)
+* Corp-Users (department-based OUs)
 * Corp-Groups (Global and Domain Local)
 * Corp-Computers
 * Corp-Admins
 
-Departments included:
+Departments:
 
 * ABCC
 * CashManagement
 * CleanWaterTrust
 * DebtManagement
-* DefinedContributionPlans
 * IT
 * MSRB
 * OEE
-* ServiceAccounts
 * UnclaimedProperty
 * VeteransBonus
 
-### Identity and Access Model (AGDLP)
+---
 
-Implemented Role-Based Access Control using AGDLP:
+## Identity and Access Model (AGDLP)
 
 Accounts → Global Groups → Domain Local Groups → Permissions
 
@@ -93,40 +159,32 @@ Accounts → Global Groups → Domain Local Groups → Permissions
 * Global Groups nested into Domain Local Groups
 * Permissions assigned only to Domain Local Groups
 
-No direct user permissions were used.
-
 ---
 
 ## File Share and Authorization
 
-### Resource
+Resource:
 
-* Path: C:\TreasuryShares\OEE
+* Local path: C:\TreasuryShares\OEE
 * Share: \DC01\OEE
 
-### Permissions
+Permissions:
 
 * DL_OEE_Share_Read → Read
 * DL_OEE_Share_Modify → Modify
-
-Validated:
-
-* NTFS permissions
-* Share permissions
-* Group-based authorization
 
 ---
 
 ## Authentication Validation
 
-Kerberos authentication validated using:
+Validated using:
 
 klist
 
-Confirmed:
+Confirmed Kerberos:
 
 * Ticket Granting Ticket (TGT)
-* Service tickets for resource access
+* Service tickets
 
 ---
 
@@ -135,122 +193,87 @@ Confirmed:
 Configured:
 
 * Password complexity
-* Minimum password length
-* Account lockout policy
+* Minimum length
+* Account lockout
 
 ---
 
 ## Phase 1 — Network and Hybrid Readiness
 
-### Issues Resolved
+Issues resolved:
 
-* APIPA address on NAT adapter
+* APIPA addressing
 * DNS misconfiguration
-* No internet connectivity from domain clients
+* No internet connectivity
 
-### Fixes Applied
+Fixes:
 
-* Correct NIC roles (Internal vs NAT)
-* Set DNS to Domain Controller
-* Added DNS forwarders
-* Validated connectivity using:
-
-  * ipconfig /all
-  * ping
-  * nslookup
+* Correct NIC roles
+* DNS pointing to DC
+* DNS forwarders added
+* Connectivity validated
 
 ---
 
-## Phase 2 — Microsoft Entra ID Setup
+## Phase 2 — Microsoft Entra ID
 
-### Tenant
+* Tenant created: grochevski.onmicrosoft.com
+* Admin account configured
 
-* Domain: grochevski.onmicrosoft.com
-* Admin account created
+Used for:
 
-### Capabilities Used
-
-* User management
+* Identity management
 * Conditional Access
-* Device management
-* Identity Protection features
+* Device visibility
 
 ---
 
 ## Phase 3 — Entra Connect Sync
 
-### Configuration
+* Installed on DC01
+* Express configuration
 
-* Installed Microsoft Entra Connect on DC01
-* Used Express Settings
-* Connected:
+Result:
 
-  * On-prem AD
-  * Entra ID tenant
-
-### Result
-
-Users synchronized from AD to Entra ID:
-
-* On-prem AD became source of truth
-* Cloud identities created successfully
+* AD users synchronized to Entra ID
+* AD remained source of truth
 
 ---
 
-## Phase 4 — Multi-Factor Authentication (MFA)
+## Phase 4 — MFA and Conditional Access
 
-### Conditional Access Policy
+Policy:
 
-* Policy: Require MFA for All Users
-* Scope: All users (admin excluded)
-* Target: All cloud apps
+Require MFA for all users
 
-### Result
-
-* MFA registration enforced
-* Microsoft Authenticator required
+* All users included
+* Admin excluded
+* All apps targeted
 
 ---
 
-## Phase 5 — Risk-Based Conditional Access
+## Phase 5 — Risk-Based Access
 
-Configured adaptive security policies:
+Configured:
 
 * Sign-in Risk → Require MFA
 * User Risk → Require Password Change
-
-This introduced:
-
-* Risk-based authentication
-* Automated identity protection
 
 ---
 
 ## Phase 6 — Hybrid Device Join
 
-### Initial Issue
+Initial issue:
 
-Device showed:
+* Device not Azure AD joined
 
-* AzureAdJoined: NO
-* DomainJoined: YES
+Fixes:
 
-### Root Causes
+* Time sync corrected
+* SCP configured
+* Device properly registered
 
-* Incorrect join method (workplace join only)
-* OU placement issues
-* Time synchronization failure
-
-### Fixes
-
-* Configured NTP time sync
-* Resolved token timing errors
-* Configured SCP using Entra Connect
-* Corrected AD object placement
-
-### Validation
-
-Command:
+Validation:
 
 dsregcmd /status
 
@@ -263,98 +286,52 @@ Result:
 
 ## Phase 7 — Device-Based Conditional Access
 
-### Policy
+Policy:
 
 Require Hybrid Joined Device
 
-### Configuration
+Result:
 
-* Applied to test user
-* Targeted all cloud apps
-* Required hybrid-joined device
-
-### Outcome
-
-* Access allowed from trusted device
-* Access blocked from unmanaged devices
+* Trusted devices allowed
+* Untrusted devices blocked
 
 ---
 
 ## Phase 8 — Access Validation
 
-### Trusted Device
-
-* Access granted
-
-### Untrusted Device
-
-* Access blocked with Conditional Access policy
-
-This validated Zero Trust enforcement.
+* Trusted device → Access granted
+* Untrusted device → Access denied
 
 ---
 
-## Writeback and Identity Model
+## Writeback Model
 
-* Synchronization: AD → Entra ID
-* No full cloud-to-AD writeback
-
-On-prem AD remains source of truth.
+* AD → Entra ID sync only
+* AD remains source of truth
 
 ---
 
 ## Key Concepts Demonstrated
 
-### Identity Infrastructure
-
-* Active Directory Domain Services
-* DNS for identity resolution
-
-### Authentication
-
-* Kerberos
-* MFA
-
-### Authorization
-
-* AGDLP model
-* NTFS and Share permissions
-
-### Hybrid Identity
-
-* Entra ID
-* Entra Connect Sync
-* Hybrid Azure AD Join
-
-### Zero Trust
-
-* Conditional Access
-* Device trust enforcement
-
-### Troubleshooting
-
-* DNS resolution issues
-* Network configuration
-* Time synchronization errors
-* Hybrid join failures
+Identity Infrastructure
+Authentication
+Authorization
+Hybrid Identity
+Zero Trust
+Troubleshooting
 
 ---
 
 ## Final Outcome
 
-This lab demonstrates a fully functional Hybrid IAM environment where:
-
-* Identities originate in Active Directory
-* Users synchronize to Microsoft Entra ID
-* Devices are hybrid joined
-* MFA is enforced
-* Conditional Access controls access
-* Untrusted devices are blocked
+* Hybrid identity fully functional
+* MFA enforced
+* Conditional Access active
+* Device trust enforced
+* Zero Trust validated
 
 ---
 
 ## Portfolio Summary
 
 Built a Hybrid Identity and Access Management lab integrating on-prem Active Directory with Microsoft Entra ID using Entra Connect Sync. Implemented Kerberos authentication, AGDLP authorization, hybrid identity synchronization, MFA, Conditional Access, and device-based Zero Trust enforcement. Validated secure access by allowing only trusted hybrid-joined devices and blocking unmanaged endpoints.
-
----
