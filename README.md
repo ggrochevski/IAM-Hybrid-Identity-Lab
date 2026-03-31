@@ -107,12 +107,12 @@ CA -->|Allow or Block Access| User
 ```mermaid
 flowchart LR
 
-subgraph Internal Network (10.10.10.0/24)
+subgraph Internal_Network
     DC["DC01\n10.10.10.10"]
     Client["Windows 10 Client\n10.10.10.20"]
 end
 
-subgraph External Network (NAT)
+subgraph External_Network
     Internet["Internet"]
 end
 
